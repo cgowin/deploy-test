@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ARTIFACT_BUCKET: fictiv-ai-artifacts
+      ARTIFACT_BUCKET: fictiv-ai-artifact
       AWS_REGION: us-west-2
       OIDC_ROLE: arn:aws:iam::960560666005:role/GitHubActionsDeploymentRole
       DB_SECRET_ARN: arn:aws:secretsmanager:us-west-2:960560666005:secret:rds/test-db-Gy0qti
