@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  AppName:
+    Type: String
+    Default: compass-api
+    Description: The name of the app
+  EnvironmentName:
+    Type: String
+    Default: dev
+    Description: The name of the specific environment (e.g., dev, prod)
+  DBSecretArn:
+    Type: String
+    Description: "Secrets Manager creds for the database"
+  SchemaS3Key:
+    Type: String
+    Description: "S3 path to the schema.sql"
+
+Resources:
+  EphemeralDatabase:
+    Type: Custom::DevDatabase
+    Properties:
+      ServiceToken: !ImportValue DBAdminLambdaServiceToken 
+      EnvironmentName: !Ref EnvironmentName
+      MasterSecretArn: !Ref DBSecretArn
+      SchemaBucket: "fictiv-ai-artifact"
+      SchemaS3Key: !Ref SchemaS3Key
+
+  RunningEnvironment:
+    Type: AWS::ElasticBeanstalk::Environment
+    DependsOn: EphemeralDatabase
+    Properties:
+      ApplicationName: !Ref AppName
+      EnvironmentName: !Sub "${AppName}-${EnvironmentName}"
+      TemplateName: elasticbeanstalk-compass-api-DockerBlueprintTemplate-22LfQoLTqvD5
+
+      OptionSettings:
+        # Injecting Environment Variables to the Docker container
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: SOME_VAR
+          Value: "value"
+
+        - Namespace: aws:autoscaling:asg
+          OptionName: MinSize
+          Value: "1"
+        - Namespace: aws:autoscaling:asg
+          OptionName: MaxSize
+          Value: "1"

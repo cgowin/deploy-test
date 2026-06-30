@@ -1,0 +1,77 @@
+name: Ephemeral Environment Manager
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'Unique name for the dev environment'
+        required: true
+        type: string
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+# These permissions are required for the AWS OIDC connection to work
+permissions:
+  id-token: write 
+  contents: read
+
+jobs:
+  manage-environment:
+    runs-on: ubuntu-latest
+
+    env:
+      ARTIFACT_BUCKET: fictiv-ai-artifacts
+      AWS_REGION: us-west-2
+      OIDC_ROLE: arn:aws:iam::960560666005:role/GitHubActionsDeploymentRole
+      DB_SECRET_ARN: arn:aws:secretsmanager:us-west-2:960560666005:secret:rds/test-db-Gy0qti
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.OIDC_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # --- DEPLOY PATH ---
+      - name: Upload Schema to S3
+        if: ${{ github.event.inputs.action == 'deploy' }}
+        run: |
+          # Generate a unique key using the environment name and commit SHA
+          SCHEMA_KEY="schemas/${{ github.event.inputs.environment_name }}/${{ github.sha }}.sql"
+          
+          # Upload the file
+          aws s3 cp database/schema.sql s3://${{ env.ARTIFACT_BUCKET }}/$SCHEMA_KEY
+          
+          # Export the key to GitHub Env so the CloudFormation step can use it
+          echo "SCHEMA_S3_KEY=$SCHEMA_KEY" >> $GITHUB_ENV
+
+      - name: Deploy CloudFormation Stack
+        if: ${{ github.event.inputs.action == 'deploy' }}
+        run: |
+          aws cloudformation deploy \
+            --stack-name eb-compass-${{ github.event.inputs.environment_name }} \
+            --template-file infra/beanstalk-template.yaml \
+            --parameter-overrides \
+              EnvironmentName=${{ github.event.inputs.environment_name }} \
+              DBSecretArn=${{ env.DB_SECRET_ARN }} \
+              SchemaS3Key=${{ env.SCHEMA_S3_KEY }} \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
+
+      # --- DESTROY PATH ---
+      - name: Destroy CloudFormation Stack
+        if: ${{ github.event.inputs.action == 'destroy' }}
+        run: |
+          echo "Initiating teardown for environment: ${{ github.event.inputs.environment_name }}"
+          aws cloudformation delete-stack --stack-name eb-env-${{ github.event.inputs.environment_name }}
+          
+          echo "Waiting for stack deletion to complete..."
+          aws cloudformation wait stack-delete-complete --stack-name eb-env-${{ github.event.inputs.environment_name }}

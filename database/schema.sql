@@ -1,0 +1,18 @@
+CREATE TABLE table1 (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE table2 (
+    id SERIAL PRIMARY KEY,
+    table1_id INT REFERENCES table1(id) ON DELETE CASCADE,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE table3 (
+    id SERIAL PRIMARY KEY,
+    metadata JSONB,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
