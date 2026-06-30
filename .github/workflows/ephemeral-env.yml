@@ -59,7 +59,7 @@ jobs:
         run: |
           aws cloudformation deploy \
             --stack-name eb-compass-${{ github.event.inputs.environment_name }} \
-            --template-file infra/beanstalk-template.yaml \
+            --template-file infra/elasticbeanstalk-environment.yml \
             --parameter-overrides \
               EnvironmentName=${{ github.event.inputs.environment_name }} \
               DBSecretArn=${{ env.DB_SECRET_ARN }} \
