@@ -71,7 +71,7 @@ jobs:
         if: ${{ github.event.inputs.action == 'destroy' }}
         run: |
           echo "Initiating teardown for environment: ${{ github.event.inputs.environment_name }}"
-          aws cloudformation delete-stack --stack-name eb-env-${{ github.event.inputs.environment_name }}
+          aws cloudformation delete-stack --stack-name eb-compass-${{ github.event.inputs.environment_name }}
           
           echo "Waiting for stack deletion to complete..."
           aws cloudformation wait stack-delete-complete --stack-name eb-compass-${{ github.event.inputs.environment_name }}
